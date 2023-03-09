@@ -1,7 +1,6 @@
 package eu.europeana.cloud.processors;
 
-import eu.europeana.cloud.mcs.driver.FileServiceClient;
-import eu.europeana.cloud.service.mcs.exception.MCSException;
+import eu.europeana.cloud.dto.Message;
 import eu.europeana.normalization.Normalizer;
 import eu.europeana.normalization.NormalizerFactory;
 import eu.europeana.normalization.model.NormalizationResult;
@@ -13,33 +12,22 @@ import org.apache.kafka.streams.processor.api.Record;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
-
 /**
  * Does the normalization for the file
  */
-public class NormalizationProcessor implements Processor<String, String, String, NormalizationResult> {
+public class NormalizationProcessor implements Processor<String, Message, String, Message> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(NormalizationProcessor.class);
     private Normalizer normalizer;
 
-    private ProcessorContext<String, NormalizationResult> context;
-
-    private FileServiceClient fileClient;
+    private ProcessorContext<String, Message> context;
 
     @Override
-    public void init(ProcessorContext<String, NormalizationResult> context) {
+    public void init(ProcessorContext<String, Message> context) {
         this.context = context;
         try {
             NormalizerFactory normalizerFactory = new NormalizerFactory();
             normalizer = normalizerFactory.getNormalizer();
-            fileClient = new FileServiceClient(
-                    context.appConfigs().get("ecloud.url").toString(),
-                    context.appConfigs().get("ecloud.user").toString(),
-                    context.appConfigs().get("ecloud.password").toString()
-            );
         } catch (NormalizationConfigurationException e) {
             throw new RuntimeException(e);
         }
@@ -47,18 +35,19 @@ public class NormalizationProcessor implements Processor<String, String, String,
     }
 
     @Override
-    public void process(Record<String, String> record) {
-        String document = null;
+    public void process(Record<String, Message> record) {
+        String document = record.value().getPayload();
         try {
-            String fileUrl = record.value();
-            InputStream file = fileClient.getFile(fileUrl);
-            document = new String(file.readAllBytes(), StandardCharsets.UTF_8);
+            LOGGER.info("The following file will be processed: {}", document);
             NormalizationResult normalizationResult = normalizer.normalize(document);
             LOGGER.info("File normalized: {}", normalizationResult.getNormalizedRecordInEdmXml());
-            context.forward(new Record<>(record.key(), normalizationResult, 10));
-        } catch (MCSException | NormalizationException | IOException e) {
+            context.forward(new Record<>(
+                    record.key(),
+                    Message.builder()
+                            .payload(normalizationResult.getNormalizedRecordInEdmXml())
+                            .build(), 10));
+        } catch (NormalizationException e) {
             LOGGER.error("Error while normalizing file {}", record.value());
-            context.forward(new Record<>(record.key(), NormalizationResult.createInstanceForError(e.getMessage(), record.value()), 10));
         }
     }
 
