@@ -4,7 +4,7 @@ name: Busybox Print
 on:
   push:
     branches:
-      - main
+      - master
 
 jobs:
   print-message:
