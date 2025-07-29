@@ -1,10 +1,9 @@
-# .github/workflows/busybox-print.yml
 name: Busybox Print
 
 on:
   push:
     branches:
-      - master
+      - master1
 
 jobs:
   print-message:
