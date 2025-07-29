@@ -1,5 +1,6 @@
 name: 02 - Workflow Events
-on: push
+on:
+  - workflow_dispatch
 jobs:
   echo:
     runs-on: ubuntu-latest
