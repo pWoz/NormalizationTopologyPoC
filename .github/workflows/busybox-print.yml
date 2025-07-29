@@ -1,0 +1,17 @@
+# .github/workflows/busybox-print.yml
+name: Busybox Print
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  print-message:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Run BusyBox to print message
+        uses: docker://busybox:latest
+        with:
+          args: echo "Hello from BusyBox in GitHub Actions!"
